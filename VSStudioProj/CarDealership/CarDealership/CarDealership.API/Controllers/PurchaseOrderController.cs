@@ -4,6 +4,7 @@ using CarDealership.API.Data;
 using CarDealership.API.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CarDealership.API.Controllers
@@ -28,7 +29,6 @@ namespace CarDealership.API.Controllers
                 OrderID = po.OrderID,
                 VIN = po.VIN,
                 CustomerID = po.CustomerID
-                // Map other properties as needed
             }).ToList();
 
             return Ok(purchaseOrderDTOs);
@@ -55,10 +55,21 @@ namespace CarDealership.API.Controllers
         [HttpPost]
         public async Task<ActionResult<List<PurchaseOrderDTO>>> AddPurchaseOrder(CreatePurchaseOrderDTO createPurchaseOrderDTO)
         {
+            var car = await _context.CarsEntities.FindAsync(createPurchaseOrderDTO.VIN);
+            var customer = await _context.CustomerEntities.FindAsync(createPurchaseOrderDTO.CustomerID);
+
+            if (car == null || customer == null)
+            {
+                return BadRequest("Invalid VIN or CustomerID");
+            }
+
             var purchaseOrder = new PurchaseOrderEntity
             {
                 VIN = createPurchaseOrderDTO.VIN,
-                CustomerID = createPurchaseOrderDTO.CustomerID
+                CustomerID = createPurchaseOrderDTO.CustomerID,
+                Car = car,
+                Customer = customer,
+                TransactionHistory = new List<TransactionHistoryEntity>() // Initialize as empty list or fetch existing history if needed
                 // Map other properties as needed
             };
 
@@ -83,8 +94,18 @@ namespace CarDealership.API.Controllers
             if (dbPurchaseOrder is null)
                 return NotFound("Purchase order not found");
 
+            var car = await _context.CarsEntities.FindAsync(updatePurchaseOrderDTO.VIN);
+            var customer = await _context.CustomerEntities.FindAsync(updatePurchaseOrderDTO.CustomerID);
+
+            if (car == null || customer == null)
+            {
+                return BadRequest("Invalid VIN or CustomerID");
+            }
+
             dbPurchaseOrder.VIN = updatePurchaseOrderDTO.VIN;
             dbPurchaseOrder.CustomerID = updatePurchaseOrderDTO.CustomerID;
+            dbPurchaseOrder.Car = car;
+            dbPurchaseOrder.Customer = customer;
             // Update other properties as needed
 
             await _context.SaveChangesAsync();
